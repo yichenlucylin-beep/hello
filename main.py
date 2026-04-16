@@ -1,9 +1,12 @@
 import requests
 import json
 import os
+import time
+from datetime import datetime
 
 API_URL = "https://uselessfacts.jsph.pl/random.json?language=zh"
 DATA_FILE = "facts.json"
+INTERVAL_SECONDS = 10  # 每 10 秒執行一次（示範用）
 
 
 def load_facts():
@@ -19,30 +22,34 @@ def save_facts(facts):
 
 
 def fetch_fact():
-    response = requests.get(API_URL)
-    if response.status_code == 200:
-        return response.json()["text"]
-    else:
-        return None
+    try:
+        response = requests.get(API_URL, timeout=10)
+        if response.status_code == 200:
+            return response.json()["text"]
+    except Exception:
+        pass
+    return None
 
 
-def main():
-    facts = load_facts()
-    new_fact = fetch_fact()
+def main_loop():
+    print("自動事實收集器已啟動，按 Ctrl+C 可停止")
 
-    if new_fact is None:
-        print("API 連線失敗")
-        return
+    while True:
+        facts = load_facts()
+        new_fact = fetch_fact()
+        timestamp = datetime.now().isoformat(timespec="seconds")
 
-    if new_fact in facts:
-        print("這則事實已經存在資料庫中：")
-        print(new_fact)
-    else:
-        facts.append(new_fact)
-        save_facts(facts)
-        print("新增一則事實並存入資料庫：")
-        print(new_fact)
+        if new_fact is None:
+            print(f"[{timestamp}] API 連線失敗")
+        elif new_fact in facts:
+            print(f"[{timestamp}] 重複資料，略過")
+        else:
+            facts.append(new_fact)
+            save_facts(facts)
+            print(f"[{timestamp}] 新增事實：{new_fact}")
+
+        time.sleep(INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":
-    main()
+    main_loop()
